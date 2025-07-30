@@ -70,9 +70,10 @@ delilah_close(struct inode* inode, struct file* filp)
 }
 
 static int
-delilah_uring_cmd(struct io_uring_sqe* sqe, unsigned int res) /* Changed io_uring_cmd* to io_uring_sqe* */
+delilah_uring_cmd(struct io_uring_cmd* cmd, unsigned int res) /* PhB!! - Changed io_uring_cmd* to io_uring_sqe* */
 {
-  struct delilah_env* env = sqe->file->private_data;
+  struct delilah_env* env = cmd->file->private_data;
+  struct io_uring_sqe * sqe = (struct io_uring_sqe *) cmd->sqe;
   switch (sqe->cmd_op) {
     case DELILAH_OP_PROG_EXEC:
     case DELILAH_OP_PROG_EXEC_JIT:
@@ -97,8 +98,7 @@ delilah_uring_cmd(struct io_uring_sqe* sqe, unsigned int res) /* Changed io_urin
 static const struct file_operations delilah_fops = { .owner = THIS_MODULE,
                                                      .open = delilah_open,
                                                      .release = delilah_close,
-                                                     .uring_cmd =
-                                                       delilah_uring_cmd };
+                                                     .uring_cmd = delilah_uring_cmd };
 
 static struct delilah_dev*
 to_delilah(struct device* dev)
@@ -224,7 +224,7 @@ delilah_cdev_init(void)
 {
   int rc;
 
-  delilah_class = class_create(THIS_MODULE, DELILAH_NAME);
+  delilah_class = class_create(DELILAH_NAME);
   if (IS_ERR(delilah_class))
     return PTR_ERR(delilah_class);
 

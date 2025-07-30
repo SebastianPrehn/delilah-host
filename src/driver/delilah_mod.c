@@ -173,7 +173,7 @@ ebpf_irq(int irq, void* ptr)
   struct delilah_dev* delilah = dpdev->ddev;
   struct delilah_cmd cmd;
   uint32_t eng = irq, res;
-  struct io_uring_cmd* sqe = dpdev->sqes[eng];
+  struct io_uring_sqe* sqe = dpdev->sqes[eng];
 
   memcpy_fromio(&cmd.res, &delilah->cmds[eng].res, sizeof(cmd.res));
 
@@ -204,7 +204,7 @@ ebpf_irq(int irq, void* ptr)
       break;
   }
 
-  io_uring_cmd_done(sqe, res, res, 0);
+  io_uring_cmd_done((struct io_uring_cmd *) sqe->cmd, res, res, 0);
 
   return IRQ_HANDLED;
 }
@@ -311,7 +311,7 @@ delilah_exec_program(struct delilah_env* env, struct io_uring_sqe* sqe)
            cmd.req.opcode, cmd.req.cid, cmd.req.run_prog.prog_slot,
            cmd.req.run_prog.data_slot, eng);
 
-  dpdev->sqes[eng] = (struct io_uring_cmd*)sqe;
+  dpdev->sqes[eng] = (struct io_uring_sqe*)sqe;
 
   memcpy_toio(&env->delilah->cmds[eng].req, &cmd.req, sizeof(cmd.req));
   iowrite8(1, &env->delilah->cmds_ctrl[eng].ehcmdexec);
@@ -333,7 +333,7 @@ delilah_clear_cache(struct delilah_env* env, struct io_uring_sqe* sqe)
 
   pr_debug("opcode: 0x%x cid: 0x%x\n", cmd.req.opcode, cmd.req.cid);
 
-  dpdev->sqes[eng] = (struct io_uring_cmd*)sqe;
+  dpdev->sqes[eng] = (struct io_uring_sqe*)sqe;
 
   memcpy_toio(&env->delilah->cmds[eng].req, &cmd.req, sizeof(cmd.req));
   iowrite8(1, &env->delilah->cmds_ctrl[eng].ehcmdexec);
@@ -357,7 +357,7 @@ delilah_clear_state(struct delilah_env* env, struct io_uring_sqe* sqe)
 
   pr_debug("opcode: 0x%x cid: 0x%x\n", cmd.req.opcode, cmd.req.cid);
 
-  dpdev->sqes[eng] = (struct io_uring_cmd*)sqe;
+  dpdev->sqes[eng] = (struct io_uring_sqe*)sqe;
 
   memcpy_toio(&env->delilah->cmds[eng].req, &cmd.req, sizeof(cmd.req));
   iowrite8(1, &env->delilah->cmds_ctrl[eng].ehcmdexec);
@@ -376,8 +376,8 @@ delilah_info(struct delilah_env* env, struct io_uring_sqe* sqe)
                                  .ehdssze = env->delilah->cfg.ehdssze,
                                  .ehsssze = env->delilah->cfg.ehsssze };
 
-  const uint64_t* ptr = (const uint64_t*) sqe->cmd;
-  long b = copy_to_user(*ptr, &info, sizeof(struct delilah_device));
+  void* ptr = (void *) sqe->cmd;
+  long b = copy_to_user(ptr, &info, sizeof(struct delilah_device));
   io_uring_cmd_done((struct io_uring_cmd*) sqe->cmd, b, b, 0);
   return -EIOCBQUEUED;
 }

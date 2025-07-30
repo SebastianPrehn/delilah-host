@@ -54,7 +54,7 @@
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
 
-#include "delilah_uapi.h"
+#include "../include/delilah_uapi.h"
 #include "xdma/libxdma.h"
 
 #define MAGIC_ENGINE 0xEEEEEEEEUL
@@ -195,7 +195,7 @@ struct delilah_pci_dev
   struct ida_wq h2c_ida_wq;
 
   uint64_t ehpslen[256];
-  struct io_uring_cmd* sqes[256];
+  struct io_uring_sqe* sqes[256];
 };
 
 struct xdma_io_cb
