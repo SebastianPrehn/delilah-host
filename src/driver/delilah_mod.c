@@ -91,21 +91,21 @@ work_h2c(struct work_struct* work)
   const struct delilah_dma* dma;
   off_t pos;
 
-  dma = entry->sqe->cmd;
+  dma = (const struct delilah_dma*) entry->sqe->cmd;
 
   pr_debug("H2C: buf: 0x%llx len: 0x%x slot: 0x%x offset: 0x%x, op: 0x%x\n",
            dma->buf, dma->len, dma->slot, dma->offset, entry->sqe->cmd_op);
 
   if (!access_ok((void*)dma->buf, dma->len)) {
     pr_warn("H2C received an invalid buffer address\n");
-    io_uring_cmd_done(entry->sqe, -EINVAL, -EINVAL, 0);
+    io_uring_cmd_done((struct io_uring_cmd *) entry->sqe->cmd, -EINVAL, -EINVAL, 0);
     return;
   }
 
   chnl = xdma_get_h2c(dpdev);
 
   if (IS_ERR(chnl)) {
-    io_uring_cmd_done(entry->sqe, -EAGAIN, -EAGAIN, 0);
+    io_uring_cmd_done((struct io_uring_cmd *) entry->sqe, -EAGAIN, -EAGAIN, 0);
     pr_info("H2C: No channel available\n");
     return;
   }
@@ -116,7 +116,7 @@ work_h2c(struct work_struct* work)
   else
     pos = cfg->ehdsoff + dma->slot * cfg->ehdssze;
 
-  xdma_channel_read_write(entry->sqe, chnl, dma->buf, dma->len,
+  xdma_channel_read_write((struct io_uring_cmd*) entry->sqe, chnl, dma->buf, dma->len,
                           pos + dma->offset, 1);
   xdma_release_h2c(chnl);
 
@@ -137,27 +137,27 @@ work_c2h(struct work_struct* work)
   const struct delilah_dma* dma;
   off_t pos;
 
-  dma = entry->sqe->cmd;
+  dma = (const struct delilah_dma *) entry->sqe->cmd; /* + */
 
   pr_debug("C2H: buf: 0x%llx len: 0x%x slot: 0x%x offset: 0x%x, op: 0x%x\n",
            dma->buf, dma->len, dma->slot, dma->offset, entry->sqe->cmd_op);
 
   if (!access_ok((void*)dma->buf, dma->len)) {
     pr_warn("C2H received an invalid buffer address\n");
-    io_uring_cmd_done(entry->sqe, -EINVAL, -EINVAL, 0);
+    io_uring_cmd_done((struct io_uring_cmd *) entry->sqe, -EINVAL, -EINVAL, 0);
     return;
   }
 
   chnl = xdma_get_c2h(dpdev);
 
   if (IS_ERR(chnl)) {
-    io_uring_cmd_done(entry->sqe, -EAGAIN, -EAGAIN, 0);
+    io_uring_cmd_done((struct io_uring_cmd *) entry->sqe, -EAGAIN, -EAGAIN, 0);
     pr_info("C2H: No channel available\n");
     return;
   }
 
   pos = cfg->ehdsoff + dma->slot * cfg->ehdssze;
-  xdma_channel_read_write(entry->sqe, chnl, dma->buf, dma->len,
+  xdma_channel_read_write((struct io_uring_cmd *) entry->sqe, chnl, dma->buf, dma->len,
                           pos + dma->offset, 0);
   xdma_release_c2h(chnl);
 
@@ -210,9 +210,9 @@ ebpf_irq(int irq, void* ptr)
 }
 
 long
-delilah_download_program(struct delilah_env* env, struct io_uring_cmd* sqe)
+delilah_download_program(struct delilah_env* env, struct io_uring_sqe* sqe)
 {
-  const struct delilah_dma* dma = sqe->cmd;
+  const struct delilah_dma* dma = (const struct delilah_dma*) sqe->cmd;
   struct delilah_pci_dev* dpdev = env->delilah->dpdev;
   struct delilah_cfg* cfg = &dpdev->ddev->cfg;
   struct delilah_queue_entry* entry;
@@ -230,7 +230,7 @@ delilah_download_program(struct delilah_env* env, struct io_uring_cmd* sqe)
   dpdev->ehpslen[dma->slot] = dma->len;
 
   entry = kmalloc(sizeof(struct delilah_queue_entry), GFP_KERNEL);
-  entry->sqe = sqe;
+  entry->sqe = (struct io_uring_sqe *) sqe;
   entry->env = env;
   entry->dpdev = dpdev;
 
@@ -241,9 +241,9 @@ delilah_download_program(struct delilah_env* env, struct io_uring_cmd* sqe)
 }
 
 long
-delilah_io(struct delilah_env* env, struct io_uring_cmd* sqe, bool write)
+delilah_io(struct delilah_env* env, struct io_uring_sqe* sqe, bool write)
 {
-  const struct delilah_dma* dma = sqe->cmd;
+  const struct delilah_dma* dma = (const struct delilah_dma*) sqe->cmd;
   struct delilah_pci_dev* dpdev = env->delilah->dpdev;
   struct delilah_cfg* cfg = &dpdev->ddev->cfg;
   struct delilah_queue_entry* entry;
@@ -259,7 +259,7 @@ delilah_io(struct delilah_env* env, struct io_uring_cmd* sqe, bool write)
     return -EINVAL;
 
   entry = kmalloc(sizeof(struct delilah_queue_entry), GFP_KERNEL);
-  entry->sqe = sqe;
+  entry->sqe = (struct io_uring_sqe *) sqe;
   entry->env = env;
   entry->dpdev = dpdev;
 
@@ -275,9 +275,9 @@ delilah_io(struct delilah_env* env, struct io_uring_cmd* sqe, bool write)
 }
 
 long
-delilah_exec_program(struct delilah_env* env, struct io_uring_cmd* sqe)
+delilah_exec_program(struct delilah_env* env, struct io_uring_sqe* sqe)
 {
-  const struct delilah_exec* exec = sqe->cmd;
+  const struct delilah_exec* exec = (const struct delilah_exec*) sqe->cmd;
   struct delilah_pci_dev* dpdev = env->delilah->dpdev;
   struct delilah_cmd cmd = {
       .req =
@@ -320,9 +320,9 @@ delilah_exec_program(struct delilah_env* env, struct io_uring_cmd* sqe)
 }
 
 long
-delilah_clear_cache(struct delilah_env* env, struct io_uring_cmd* sqe)
+delilah_clear_cache(struct delilah_env* env, struct io_uring_sqe* sqe)
 {
-  const struct delilah_clear_cache* clear_cache = sqe->cmd;
+  const struct delilah_clear_cache* clear_cache = (const struct delilah_clear_cache*) sqe->cmd;
   struct delilah_pci_dev* dpdev = env->delilah->dpdev;
   struct delilah_cmd cmd;
   int eng;
@@ -342,9 +342,9 @@ delilah_clear_cache(struct delilah_env* env, struct io_uring_cmd* sqe)
 }
 
 long
-delilah_clear_state(struct delilah_env* env, struct io_uring_cmd* sqe)
+delilah_clear_state(struct delilah_env* env, struct io_uring_sqe* sqe)
 {
-  const struct delilah_clear_state* clear_state = sqe->cmd;
+  const struct delilah_clear_state* clear_state = (const struct delilah_clear_state*) sqe->cmd;
   struct delilah_pci_dev* dpdev = env->delilah->dpdev;
   struct delilah_cmd cmd;
   int eng;
@@ -366,7 +366,7 @@ delilah_clear_state(struct delilah_env* env, struct io_uring_cmd* sqe)
 }
 
 long
-delilah_info(struct delilah_env* env, struct io_uring_cmd* sqe)
+delilah_info(struct delilah_env* env, struct io_uring_sqe* sqe)
 {
   struct delilah_device info = { .ehver = env->delilah->cfg.ehver,
                                  .eheng = env->delilah->cfg.eheng,
@@ -376,9 +376,9 @@ delilah_info(struct delilah_env* env, struct io_uring_cmd* sqe)
                                  .ehdssze = env->delilah->cfg.ehdssze,
                                  .ehsssze = env->delilah->cfg.ehsssze };
 
-  const uint64_t* ptr = sqe->cmd;
+  const uint64_t* ptr = (const uint64_t*) sqe->cmd;
   long b = copy_to_user(*ptr, &info, sizeof(struct delilah_device));
-  io_uring_cmd_done(sqe, b, b, 0);
+  io_uring_cmd_done((struct io_uring_cmd*) sqe->cmd, b, b, 0);
   return -EIOCBQUEUED;
 }
 

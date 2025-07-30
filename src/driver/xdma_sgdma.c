@@ -30,6 +30,7 @@
 #include "xdma/libxdma_api.h"
 #include <asm/cacheflush.h>
 #include <linux/types.h>
+#include <linux/io_uring/cmd.h> /* seb: trying to add this here */
 
 #define PAGE_PTRS_PER_SGL (sizeof(struct scatterlist) / sizeof(struct page*))
 
@@ -172,9 +173,9 @@ char_sgdma_map_user_buf_to_sgl(struct xdma_io_cb* cb, bool write)
     rv = -ENOMEM;
     goto err_out;
   }
-
+/* Seb: Trying to remove 0 from the end */
   rv = get_user_pages_remote(current->active_mm, (unsigned long)buf, pages_nr,
-                             FOLL_WRITE /* write */, cb->pages, NULL, 0);
+                             FOLL_WRITE /* write */, cb->pages, NULL);
 
   /* No pages were pinned */
   if (rv < 0) {

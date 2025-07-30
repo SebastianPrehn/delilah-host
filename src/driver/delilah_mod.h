@@ -35,6 +35,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/io_uring/cmd.h> // Add cmd as it changed from v6.2 to v6.8
 #include <linux/io_uring.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
@@ -213,16 +214,16 @@ struct delilah_queue_entry
   struct work_struct work;
   struct delilah_pci_dev* dpdev;
   struct delilah_env* env;
-  struct io_uring_cmd* sqe;
+  struct io_uring_sqe* sqe; /* Changed from io_uring_cmd to io_uring_sqe */
 };
 
 long delilah_download_program(struct delilah_env* env,
-                              struct io_uring_cmd* sqe);
-long delilah_exec_program(struct delilah_env* env, struct io_uring_cmd* sqe);
-long delilah_io(struct delilah_env* env, struct io_uring_cmd* sqe, bool write);
-long delilah_clear_cache(struct delilah_env* env, struct io_uring_cmd* sqe);
-long delilah_info(struct delilah_env* env, struct io_uring_cmd* sqe);
-long delilah_clear_state(struct delilah_env* env, struct io_uring_cmd* sqe);
+                              struct io_uring_sqe* sqe);
+long delilah_exec_program(struct delilah_env* env, struct io_uring_sqe* sqe);
+long delilah_io(struct delilah_env* env, struct io_uring_sqe* sqe, bool write);
+long delilah_clear_cache(struct delilah_env* env, struct io_uring_sqe* sqe);
+long delilah_info(struct delilah_env* env, struct io_uring_sqe* sqe);
+long delilah_clear_state(struct delilah_env* env, struct io_uring_sqe* sqe);
 
 struct xdma_channel* xdma_get_c2h(struct delilah_pci_dev* dpdev);
 struct xdma_channel* xdma_get_h2c(struct delilah_pci_dev* dpdev);

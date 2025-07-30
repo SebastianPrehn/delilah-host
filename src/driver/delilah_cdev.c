@@ -70,7 +70,7 @@ delilah_close(struct inode* inode, struct file* filp)
 }
 
 static int
-delilah_uring_cmd(struct io_uring_cmd* sqe, unsigned int res)
+delilah_uring_cmd(struct io_uring_sqe* sqe, unsigned int res) /* Changed io_uring_cmd* to io_uring_sqe* */
 {
   struct delilah_env* env = sqe->file->private_data;
   switch (sqe->cmd_op) {
